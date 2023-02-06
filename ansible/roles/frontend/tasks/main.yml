@@ -1,0 +1,78 @@
+---
+- name: Apt add key
+  become: true
+  apt_key:
+    url: "{{nodejs.repo_host}}/gpgkey/{{nodejs.repo_key}}"
+    state: present
+
+- name: Apt add nodejs repo
+  become: true
+  apt_repository:
+    repo: "{{nodejs_repo}}"
+    state: present
+
+- name: Install nodejs
+  become: true
+  apt:
+    name: nodejs
+    state: present
+
+- name: Install npm modules
+  become: true
+  npm:
+    global: true
+    name: http-server
+
+- name: Make users
+  become: true
+  user:
+    name: "{{service.user}}"
+    create_home: no
+    shell: /sbin/nologin
+
+- name: Make directories
+  become: true
+  file:
+    group: "{{service.user}}"
+    owner: "{{service.user}}"
+    path: "{{service.path}}"
+    mode: 0755
+    state: directory
+
+- name: Get artifact
+  no_log: true
+  get_url:
+    url: "{{nexus.url}}/repository/\
+    {{nexus.repo}}/{{nexus.version}}/\
+    {{nexus.artifact}}-{{nexus.version}}.tar.gz"
+    username: "{{nexus_username}}"
+    password: "{{nexus_password}}"
+    force_basic_auth: true
+    dest: "/tmp/{{nexus.artifact}}-frontend.tar.gz"
+
+- name: Unpack artifact
+  become: true
+  unarchive:
+    src:  "/tmp/{{nexus.artifact}}-frontend.tar.gz"
+    dest: "{{service.path}}"
+    remote_src: yes
+    group: "{{service.user}}"
+    owner: "{{service.user}}"
+
+- name: Make service
+  become: true
+  template:
+    src: service.j2
+    dest: /etc/systemd/system/{{service.name}}.service
+
+- name: Reload systemd
+  become: true
+  systemd:
+    daemon_reload: yes
+
+- name: Run
+  become: true
+  service:
+    enabled: true
+    name: "{{service.name}}"
+    state: started

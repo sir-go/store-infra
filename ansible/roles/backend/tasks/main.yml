@@ -1,0 +1,108 @@
+---
+- name: Install Java & PIP
+  become: true
+  apt:
+    name: [openjdk-16-jdk, python3-pip]
+    cache_valid_time: 86400
+    force_apt_get: true
+    state: present
+
+- name: Install lxml
+  become: true
+  pip:
+    name: lxml
+
+- name: Make users
+  become: true
+  user:
+    name: "{{service.user}}"
+    create_home: no
+    shell: /sbin/nologin
+
+- name: Get artifact
+  maven_artifact:
+    username: "{{nexus_username}}"
+    password: "{{nexus_password}}"
+    force_basic_auth: true
+    dest: "/tmp/{{nexus.artifact}}-{{version}}.jar"
+    repository_url: "{{nexus.url}}/repository/{{nexus.repo}}"
+    group_id: "{{nexus.group}}"
+    artifact_id: "{{nexus.artifact}}"
+    version: "{{version}}"
+
+- name: Copy backend
+  become: true
+  copy:
+    group: "{{service.user}}"
+    owner: "{{service.user}}"
+    src: "/tmp/{{nexus.artifact}}-{{version}}.jar"
+    remote_src: true
+    dest: "{{service.path}}/"
+
+- name: Make directories
+  become: true
+  file:
+    group: "{{service.user}}"
+    owner: "{{service.user}}"
+    path: "{{item}}"
+    state: directory
+  loop: ["{{service.logs}}", "{{service.reports}}"]
+
+- name: Check that ya_mongo_cert exists
+  stat:
+    path: /tmp/{{ya_mongo_cert.alias}}-t.crt
+  register: ya_mongo_cert_stat
+
+- name: Get mongo cert
+  get_url:
+    url: "{{ya_mongo_cert.src}}"
+    dest: "/tmp/{{ya_mongo_cert.alias}}.crt"
+  when: not ya_mongo_cert_stat.stat.exists
+
+- name: Read tail of mongo cert
+  shell: "tail -31 /tmp/{{ya_mongo_cert.alias}}.crt > /tmp/{{ya_mongo_cert.alias}}-t.crt"
+  when: not ya_mongo_cert_stat.stat.exists
+
+- name: Import mongo cert
+  become: true
+  java_cert:
+    trust_cacert: True
+    cert_alias: "{{ya_mongo_cert.alias}}"
+    keystore_path: "{{ya_mongo_cert.keystore}}"
+    keystore_pass: "{{ya_store_pwd}}"
+    state: present
+    cert_path: "/tmp/{{ya_mongo_cert.alias}}-t.crt"
+
+- name: Make pg cert dir
+  become: true
+  file:
+    group: "{{ya_pg_cert.owner}}"
+    owner: "{{ya_pg_cert.owner}}"
+    path: "{{ya_pg_cert.dst}}"
+    state: directory
+
+- name: Get pg cert
+  become: true
+  get_url:
+    url: "{{ya_pg_cert.src}}"
+    dest: "{{ya_pg_cert.dst}}/root.crt"
+    mode: 0600
+    owner: "{{ya_pg_cert.owner}}"
+
+- name: Make service
+  become: true
+  template:
+    src: service.j2
+    dest: /etc/systemd/system/{{service.name}}.service
+
+- name: Reload systemd
+  become: true
+  systemd:
+    daemon_reload: yes
+
+- name: Run
+  become: true
+  service:
+    enabled: true
+    name: "{{service.name}}"
+    state: started

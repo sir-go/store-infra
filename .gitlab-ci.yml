@@ -1,0 +1,59 @@
+---
+stages:
+  - set-params
+  - sync
+
+variables:
+  REV: 0.2.4
+
+.apply_params: &apply
+  stage: set-params
+  image:
+    name: argoproj/argocd:v2.3.3
+  script:
+    - argocd --grpc-web --auth-token ${ARGO_TOKEN} --server ${ARGO_SERVER} app set ${ARGO_APP} -p ${PARAM}
+
+frontend:
+  only:
+    changes:
+      - charts/charts/frontend/**/*
+      - charts/charts/*.yaml
+  variables:
+    PARAM: frontend.image=frontend:latest
+    GIT_STRATEGY: none
+  <<: *apply
+
+backend:
+  only:
+    changes:
+      - charts/charts/backend/**/*
+      - charts/charts/*.yaml
+  variables:
+    PARAM: backend.image=backend:latest
+    GIT_STRATEGY: none
+  <<: *apply
+
+backend-report:
+  only:
+    changes:
+      - charts/charts/backend-report/**/*
+      - charts/charts/*.yaml
+  variables:
+    PARAM: backend-report.image=backend-report:latest
+    GIT_STRATEGY: none
+  <<: *apply
+
+sync:
+  stage: sync
+  only:
+    changes: [ charts/**/* ]
+  image:
+    name: alpine:latest
+  script:
+    - apk add curl helm --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing/
+    - helm package ./charts
+    - curl -u ${NEXUS_USERNAME}:${NEXUS_PASSWORD} ${NEXUS_HELM_REPO} --upload-file store*.tgz
+    - curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+    - chmod +x /usr/local/bin/argocd
+    - argocd --grpc-web --auth-token ${ARGO_TOKEN} --server ${ARGO_SERVER}
+      app set ${ARGO_APP} --helm-chart store --revision ${REV}

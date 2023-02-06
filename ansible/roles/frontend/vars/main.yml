@@ -1,0 +1,21 @@
+nexus:
+  url: https://---
+  repo: store-frontend
+  artifact: store
+  version: "1.0.97406"
+
+service:
+  descr: Store frontend
+  path: /var/www-data
+  public: "/var/www-data/{{nexus.artifact}}-{{nexus.version}}/public_html/"
+  name: Store-frontend
+  user: www-data
+  port: 443
+
+nodejs:
+  version: 16
+  repo_host: https://deb.nodesource.com
+  repo_key: nodesource.gpg.key
+
+nodejs_repo: "deb {{nodejs.repo_host}}/node_{{nodejs.version}}.x \
+{{ansible_distribution_release}} main"

@@ -1,0 +1,46 @@
+---
+groups:
+  - name: Store rules
+    rules:
+    - alert: Backend Instance Down
+      expr: up{app="backend"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        project: "store"
+        component: "Backend"
+    - alert: error 500
+      expr: sum without (instance, kubernetes_pod_name) (rate(http_server_requests_seconds_count{status=~"5..", uri!~"^/actuator.*"}[1m])) > 0
+      for: 1m
+      labels:
+        severity: error
+        project: "store"
+        component: "Backend"
+    - alert: slow request
+      expr: histogram_quantile(0.95, sum without (instance, kubernetes_pod_name) (rate(http_server_requests_seconds_bucket{uri="/api/orders", exception="None"}[5m]))) > 0.1
+      for: 1m
+      labels:
+        severity: warning
+        project: "store"
+        component: "Backend"
+    - alert: prometheus requests error
+      expr: sum without (instance, kubernetes_pod_name) (rate(http_server_requests_seconds_count{outcome!="SUCCESS", uri="/actuator/prometheus"}[2m])) > 0
+      for: 1m
+      labels:
+        severity: error
+        project: "store"
+        component: "Backend"
+    - alert: Backend Report Instance Down
+      expr: up{app="backend-report"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        project: "store"
+        component: "Backend Report"
+    - alert: Frontend Instance Down
+      expr: up{app="frontend"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        project: "store"
+        component: "Frontend"

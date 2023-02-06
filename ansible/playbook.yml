@@ -1,0 +1,10 @@
+---
+- name: Frontend
+  tags: front
+  hosts: frontend
+  roles: [frontend]
+
+- name: Backend
+  tags: back
+  hosts: backend
+  roles: [backend]

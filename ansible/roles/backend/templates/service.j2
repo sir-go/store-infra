@@ -1,0 +1,29 @@
+[Unit]
+Description={{service.descr}}
+After=network.target
+
+[Service]
+Restart=always
+RestartSec=3
+
+User={{service.user}}
+Group={{service.user}}
+
+StandardOutput=append:{{service.logs}}/out.log
+StandardError=append:{{service.logs}}/out.log
+
+Environment=REPORT_PATH={{service.reports}}
+Environment=LOG_PATH=/
+
+ExecStart=java -jar \
+ {{service.path}}/{{nexus.artifact}}-{{version}}.jar \
+ --spring.datasource.url="jdbc:postgresql://{{db.host}}:{{db.port}}/{{db.name}}?target_session_attrs=read-write&sslmode=verify-full" \
+ --spring.datasource.username={{db.username}} \
+ --spring.datasource.password={{db_password}} \
+ --spring.flyway.baselineOnMigrate=true \
+ --spring.flyway.enabled=false \
+ --spring.data.mongodb.uri="mongodb://{{mongo.username}}:{{mongo_password}}@{{mongo.host}}:{{mongo.port}}/{{mongo.dbname}}?tls=true" \
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

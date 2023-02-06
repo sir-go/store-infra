@@ -1,0 +1,48 @@
+version: 1.0.99562
+
+nexus:
+  url: https://----
+  repo: store-backend
+  artifact: store
+
+service:
+  descr: Store backend
+  path: /var/jarservice
+  name: store-backend
+  user: jarservice
+  logs: /logs
+  reports: /logs/reports
+
+db:
+  host: ----.mdb.yandexcloud.net
+  port: 6432
+  name: ----
+  username: ----
+
+db_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  ----
+
+mongo:
+  username: ----
+  host: -----.mdb.yandexcloud.net
+  port: 27018
+  dbname: -----
+
+mongo_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  ----
+
+ya_mongo_cert:
+  src: https://crls.yandex.net/allCAs.pem
+  alias: YandexInternalRootCA
+  keystore: /etc/ssl/certs/java/cacerts
+
+ya_store_pwd: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  -----
+
+ya_pg_cert:
+  src: https://storage.yandexcloud.net/cloud-certs/CA.pem
+  dst: /home/jarservice/.postgresql
+  owner: jarservice
